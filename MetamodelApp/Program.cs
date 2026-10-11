@@ -14,22 +14,17 @@ namespace MetamodelApp
             conn.Open();
             Console.WriteLine("1. Veritabanına bağlanıldı.\n");
 
-            // Tabloları sıfırla
+            // ====================================================================
+            // BÖLÜM 1: METAMODEL TABLOLARININ SIFIRLANMASI
+            // (Uygulama her çalıştığında en güncel haritayı çıkarabilmesi için M2 katmanı temizlenir. M0 katmanındaki gerçek verilere dokunulmaz.)
+            // ====================================================================
             using (var cmd = new NpgsqlCommand("TRUNCATE TABLE entityOccurrence_meta, relationship_meta, attribute_meta, entity_meta CASCADE;", conn))
             {
                 cmd.ExecuteNonQuery();
             }
 
             // ====================================================================
-            // BÖLÜM 0: M0 HAM VERİLERİNİN EKLENMESİ (Okunacak veri olsun diye)
-            // ====================================================================
-            using (var prepCmd = new NpgsqlCommand("TRUNCATE TABLE siparisler, musteriler CASCADE;", conn)) prepCmd.ExecuteNonQuery();
-            using (var prepCmd = new NpgsqlCommand("INSERT INTO musteriler (MusteriId, Ad, Email) VALUES (1, 'Mustafa Esen', 'mustafa@test.com');", conn)) prepCmd.ExecuteNonQuery();
-            using (var prepCmd = new NpgsqlCommand("INSERT INTO siparisler (SiparisId, MusteriId, Tutar) VALUES (100, 1, 500.00);", conn)) prepCmd.ExecuteNonQuery();
-
-
-            // ====================================================================
-            // BÖLÜM 1: METAMODEL ÇIKARIMI (M1 -> M2)
+            // BÖLÜM 2: METAMODEL ÇIKARIMI (M1 -> M2)
             // ====================================================================
             Console.WriteLine("2. Tablolar (Entities) Okunuyor ve Yazılıyor...");
             var entityDict = new Dictionary<string, int>();
@@ -62,14 +57,13 @@ namespace MetamodelApp
             {
                 if (entityDict.ContainsKey(col.Item1))
                 {
-                    // RETURNING AttributeId ekleyerek veritabanından ID'yi hemen alıyoruz
                     using var insertCmd = new NpgsqlCommand("INSERT INTO attribute_meta (EntityId, AttributeName, DataType) VALUES (@eId, @cName, @dType) RETURNING AttributeId", conn);
                     insertCmd.Parameters.AddWithValue("eId", entityDict[col.Item1]);
                     insertCmd.Parameters.AddWithValue("cName", col.Item2);
                     insertCmd.Parameters.AddWithValue("dType", col.Item3);
 
                     int attrId = Convert.ToInt32(insertCmd.ExecuteScalar());
-                    attributeDict[$"{col.Item1}.{col.Item2}"] = attrId; // Örn: "musteriler.ad" -> 35
+                    attributeDict[$"{col.Item1}.{col.Item2}"] = attrId;
                 }
             }
 
@@ -110,7 +104,7 @@ namespace MetamodelApp
             }
 
             // ====================================================================
-            // BÖLÜM 2: ENTITY OCCURRENCE (Ham Verilerin Metamodele Yazılması)
+            // BÖLÜM 3: ENTITY OCCURRENCE (Ham Verilerin EAV Olarak Yazılması)
             // ====================================================================
             Console.WriteLine("5. Entity Occurrences (Ham Veriler) Okunuyor ve entityOccurrence_meta Tablosuna Yazılıyor...");
 
@@ -161,7 +155,7 @@ namespace MetamodelApp
 
 
             // ====================================================================
-            // BÖLÜM 3: BİLİMSEL DOĞRULAMA VE KANIT (VERIFICATION)
+            // BÖLÜM 4: BİLİMSEL DOĞRULAMA VE KANIT (VERIFICATION)
             // ====================================================================
             Console.WriteLine("=======================================================");
             Console.WriteLine("=== BİLİMSEL DOĞRULAMA (BLACK BOX VERIFICATION) ===");
@@ -193,6 +187,7 @@ namespace MetamodelApp
             Console.WriteLine(">>> KANIT 3: Davranışsal Kural İhlali (Negative Testing)");
             try
             {
+                // Not: 999 ID'sinin veritabanında olmaması beklenir. Eğer bir gün 999 ID'li müşteri eklerseniz bu test fail yerine başarılı ekleme yapar.
                 using var insertFailCmd = new NpgsqlCommand("INSERT INTO siparisler (SiparisId, MusteriId, Tutar) VALUES (101, 999, 100.00);", conn);
                 insertFailCmd.ExecuteNonQuery();
                 Console.WriteLine("    [HATA] Bu yazı görünmemeliydi, veritabanı kuralı çiğnemeye izin verdi!");
@@ -205,6 +200,7 @@ namespace MetamodelApp
 
             try
             {
+                // Not: 1 ID'li müşterinin silinebilmesi için ona bağlı sipariş olmaması gerekir. Sabit veritabanınızda 1 numaraya bağlı sipariş varsa bu test çalışır.
                 using var deleteFailCmd = new NpgsqlCommand("DELETE FROM musteriler WHERE MusteriId = 1;", conn);
                 deleteFailCmd.ExecuteNonQuery();
                 Console.WriteLine("    [HATA] Bu yazı görünmemeliydi, veritabanı kuralı çiğnemeye izin verdi!");

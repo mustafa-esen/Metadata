@@ -8,21 +8,29 @@ namespace MetamodelApp
     {
         static void Main(string[] args)
         {
-            // Bağlantı cümleniz 
             string connString = "Host=localhost;Username=postgres;Password=1234;Database=postgres";
 
             using var conn = new NpgsqlConnection(connString);
             conn.Open();
             Console.WriteLine("1. Veritabanına bağlanıldı.\n");
 
-            // ====================================================================
-            // BÖLÜM 1: METAMODEL ÇIKARIMI (Önceki Ödev Adımı)
-            // ====================================================================
-            using (var cmd = new NpgsqlCommand("TRUNCATE TABLE relationship_meta, attribute_meta, entity_meta CASCADE;", conn))
+            // Tabloları sıfırla
+            using (var cmd = new NpgsqlCommand("TRUNCATE TABLE entityOccurrence_meta, relationship_meta, attribute_meta, entity_meta CASCADE;", conn))
             {
                 cmd.ExecuteNonQuery();
             }
 
+            // ====================================================================
+            // BÖLÜM 0: M0 HAM VERİLERİNİN EKLENMESİ (Okunacak veri olsun diye)
+            // ====================================================================
+            using (var prepCmd = new NpgsqlCommand("TRUNCATE TABLE siparisler, musteriler CASCADE;", conn)) prepCmd.ExecuteNonQuery();
+            using (var prepCmd = new NpgsqlCommand("INSERT INTO musteriler (MusteriId, Ad, Email) VALUES (1, 'Mustafa Esen', 'mustafa@test.com');", conn)) prepCmd.ExecuteNonQuery();
+            using (var prepCmd = new NpgsqlCommand("INSERT INTO siparisler (SiparisId, MusteriId, Tutar) VALUES (100, 1, 500.00);", conn)) prepCmd.ExecuteNonQuery();
+
+
+            // ====================================================================
+            // BÖLÜM 1: METAMODEL ÇIKARIMI (M1 -> M2)
+            // ====================================================================
             Console.WriteLine("2. Tablolar (Entities) Okunuyor ve Yazılıyor...");
             var entityDict = new Dictionary<string, int>();
             var tableNames = new List<string>();
@@ -42,6 +50,8 @@ namespace MetamodelApp
 
             Console.WriteLine("3. Sütunlar (Attributes) Okunuyor ve Yazılıyor...");
             var columnsData = new List<Tuple<string, string, string>>();
+            var attributeDict = new Dictionary<string, int>(); // TabloAdi.SutunAdi -> AttributeId eşleşmesi için
+
             using (var cmdCols = new NpgsqlCommand("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name NOT LIKE '%_meta'", conn))
             using (var readerCols = cmdCols.ExecuteReader())
             {
@@ -52,11 +62,14 @@ namespace MetamodelApp
             {
                 if (entityDict.ContainsKey(col.Item1))
                 {
-                    using var insertCmd = new NpgsqlCommand("INSERT INTO attribute_meta (EntityId, AttributeName, DataType) VALUES (@eId, @cName, @dType)", conn);
+                    // RETURNING AttributeId ekleyerek veritabanından ID'yi hemen alıyoruz
+                    using var insertCmd = new NpgsqlCommand("INSERT INTO attribute_meta (EntityId, AttributeName, DataType) VALUES (@eId, @cName, @dType) RETURNING AttributeId", conn);
                     insertCmd.Parameters.AddWithValue("eId", entityDict[col.Item1]);
                     insertCmd.Parameters.AddWithValue("cName", col.Item2);
                     insertCmd.Parameters.AddWithValue("dType", col.Item3);
-                    insertCmd.ExecuteNonQuery();
+
+                    int attrId = Convert.ToInt32(insertCmd.ExecuteScalar());
+                    attributeDict[$"{col.Item1}.{col.Item2}"] = attrId; // Örn: "musteriler.ad" -> 35
                 }
             }
 
@@ -96,25 +109,64 @@ namespace MetamodelApp
                 }
             }
 
-            Console.WriteLine("Metamodel Çıkarımı Tamamlandı.\n");
+            // ====================================================================
+            // BÖLÜM 2: ENTITY OCCURRENCE (Ham Verilerin Metamodele Yazılması)
+            // ====================================================================
+            Console.WriteLine("5. Entity Occurrences (Ham Veriler) Okunuyor ve entityOccurrence_meta Tablosuna Yazılıyor...");
+
+            foreach (var tableName in tableNames)
+            {
+                int entityId = entityDict[tableName];
+                var rowDataList = new List<List<(string colName, string dataValue)>>();
+
+                using (var cmdData = new NpgsqlCommand($"SELECT * FROM {tableName}", conn))
+                using (var readerData = cmdData.ExecuteReader())
+                {
+                    while (readerData.Read())
+                    {
+                        var row = new List<(string colName, string dataValue)>();
+                        for (int i = 0; i < readerData.FieldCount; i++)
+                        {
+                            string colName = readerData.GetName(i);
+                            string dataValue = readerData.IsDBNull(i) ? "NULL" : (readerData.GetValue(i)?.ToString() ?? "NULL");
+                            row.Add((colName, dataValue));
+                        }
+                        rowDataList.Add(row);
+                    }
+                }
+
+                int rowIndex = 0;
+                foreach (var row in rowDataList)
+                {
+                    rowIndex++;
+                    foreach (var cell in row)
+                    {
+                        if (attributeDict.TryGetValue($"{tableName}.{cell.colName}", out int attributeId))
+                        {
+                            using var insertOccCmd = new NpgsqlCommand(
+                                "INSERT INTO entityOccurrence_meta (EntityId, AttributeId, RowIndex, DataValue) VALUES (@eId, @aId, @rIdx, @dVal)", conn);
+
+                            insertOccCmd.Parameters.AddWithValue("eId", entityId);
+                            insertOccCmd.Parameters.AddWithValue("aId", attributeId);
+                            insertOccCmd.Parameters.AddWithValue("rIdx", rowIndex);
+                            insertOccCmd.Parameters.AddWithValue("dVal", cell.dataValue);
+
+                            insertOccCmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine("Metamodel ve Occurrence Çıkarımı Tamamlandı.\n");
 
 
             // ====================================================================
-            // BÖLÜM 2: BİLİMSEL DOĞRULAMA VE KANIT (VERIFICATION)
+            // BÖLÜM 3: BİLİMSEL DOĞRULAMA VE KANIT (VERIFICATION)
             // ====================================================================
             Console.WriteLine("=======================================================");
             Console.WriteLine("=== BİLİMSEL DOĞRULAMA (BLACK BOX VERIFICATION) ===");
-            Console.WriteLine("=======================================================\n");
+            Console.WriteLine("=======================================================");
 
-            // Testler için temsili veriler ekleyelim
-            using (var prepCmd = new NpgsqlCommand("TRUNCATE TABLE siparisler, musteriler CASCADE;", conn)) prepCmd.ExecuteNonQuery();
-            using (var prepCmd = new NpgsqlCommand("INSERT INTO musteriler (MusteriId, Ad, Email) VALUES (1, 'Mustafa Esen', 'mustafa@test.com');", conn)) prepCmd.ExecuteNonQuery();
-            using (var prepCmd = new NpgsqlCommand("INSERT INTO siparisler (SiparisId, MusteriId, Tutar) VALUES (100, 1, 500.00);", conn)) prepCmd.ExecuteNonQuery();
-
-
-            // --------------------------------------------------------------------
-            // KANIT 1: Tanım Kanıtı (Metadata & System Catalogs)
-            // --------------------------------------------------------------------
             Console.WriteLine(">>> KANIT 1: Sistem Kataloğu (Metadata) Doğrulaması");
             using (var cmdFk = new NpgsqlCommand(getFkSql, conn))
             using (var readerFk = cmdFk.ExecuteReader())
@@ -125,9 +177,6 @@ namespace MetamodelApp
                 }
             }
 
-            // --------------------------------------------------------------------
-            // KANIT 2: Fiziksel Gezinme Kanıtı (Execution Plan Analizi)
-            // --------------------------------------------------------------------
             Console.WriteLine(">>> KANIT 2: Fiziksel B-Tree ve Çalıştırma Planı (Execution Plan) Doğrulaması");
             string explainSql = "EXPLAIN ANALYZE SELECT * FROM musteriler m JOIN siparisler s ON m.MusteriId = s.MusteriId;";
             using (var cmdExplain = new NpgsqlCommand(explainSql, conn))
@@ -141,12 +190,7 @@ namespace MetamodelApp
                 Console.WriteLine("    *(Yukarıdaki çıktıda 'Hash Join' veya 'Index Scan' ifadeleri, motorun ilişkiyi fiziksel bellekte nasıl eşleştirdiğinin kanıtıdır)*\n");
             }
 
-            // --------------------------------------------------------------------
-            // KANIT 3: Davranışsal ve Algoritmik Kanıt (Referential Integrity İhlali)
-            // --------------------------------------------------------------------
             Console.WriteLine(">>> KANIT 3: Davranışsal Kural İhlali (Negative Testing)");
-
-            // TEST 3A: Olmayan Veliye (Parent) Çocuk (Child) Ekleme Testi
             try
             {
                 using var insertFailCmd = new NpgsqlCommand("INSERT INTO siparisler (SiparisId, MusteriId, Tutar) VALUES (101, 999, 100.00);", conn);
@@ -159,7 +203,6 @@ namespace MetamodelApp
                 Console.WriteLine($"      -> Fırlatılan Motor Hatası: [{ex.SqlState}] {ex.MessageText}");
             }
 
-            // TEST 3B: Çocuğu (Child) Olan Veliyi (Parent) Silme Testi
             try
             {
                 using var deleteFailCmd = new NpgsqlCommand("DELETE FROM musteriler WHERE MusteriId = 1;", conn);

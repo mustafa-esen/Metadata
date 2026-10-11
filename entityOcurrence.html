@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Veri Yönetimi Metamodeli: Entity Occurrence ve EAV Modeli Raporu</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f4f6f9;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 50px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 3px solid #34495e;
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        .header-info {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+        h2 {
+            color: #2980b9;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+        }
+        p {
+            text-align: justify;
+            font-size: 1.05em;
+        }
+        .image-container {
+            text-align: center;
+            margin: 25px 0;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .image-caption {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .proof-box {
+            background: #f8f9fa;
+            border-left: 5px solid #27ae60;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .proof-box h3 {
+            margin-top: 0;
+            color: #27ae60;
+        }
+        ul {
+            padding-left: 20px;
+            font-size: 1.05em;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+
+        /* --- PDF ÇIKTISI İÇİN SAYFA KAYMA DÜZELTMELERİ --- */
+        @media print {
+            body {
+                background-color: #ffffff;
+                margin: 0;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .proof-box, .image-container, .conclusion-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            h2, h3 {
+                page-break-after: avoid;
+                break-after: avoid;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            p, ul, li {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Veri Yönetimi Metamodeli: Entity Occurrence (Ham Veri) Çıkarımı ve EAV Modeli Raporu</h1>
+    
+    <div class="header-info">
+        <p><strong>Hazırlayan:</strong> Mustafa Esen<br>
+        <strong>Öğrenci Numarası:</strong> 91260000486<br>
+        <strong>Tarih:</strong> 11 Ekim 2026<br>
+        <strong>Kapsam:</strong> Veritabanı Sistemleri, Metamodel (M2) Tasarımı, Entity Occurrence, EAV Modeli</p>
+    </div>
+
+    <h2>1. Projenin Amacı ve Kapsamı</h2>
+    <p>Bu çalışmanın temel amacı, PostgreSQL veritabanı yönetim sisteminde yer alan <strong>M0 (Veri)</strong> katmanındaki fiziksel ham kayıtların, <strong>M2 (Metamodel)</strong> katmanıyla entegre edilerek dinamik bir <strong>EAV (Entity-Attribute-Value)</strong> modeline dönüştürülmesidir. Geliştirilen C# (.NET Core) uygulaması, veritabanındaki standart tabloları tarayarak içlerindeki verileri okumakta ve <code>entityOccurrence_meta</code> tablosuna (Veri Sözlüğü Örneklemi) yapısal bir bütünlük içinde aktarmaktadır.</p>
+
+    <h2>2. Entity Occurrence (Ham Veri) Çıkarım Mimarisi</h2>
+    <p>Fiziksel tablolardaki verilerin metamodele aktarılması süreci, yazılım mimarisi açısından yüksek performans ve dinamiklik gerektirmektedir. Bu aşamada uygulanan teknik adımlar şunlardır:</p>
+    <ul>
+        <li><strong>Metamodel Eşleştirmesi (Mapping):</strong> Uygulama, öncelikle M1 seviyesindeki varlıkları (Entity) ve nitelikleri (Attribute) okuyarak <code>entity_meta</code> ve <code>attribute_meta</code> tablolarına kaydeder. C# uygulamasında bu kayıtlar sırasında üretilen kimlikler (EntityId ve AttributeId) <code>Dictionary</code> (Sözlük) yapılarında RAM üzerinde önbelleğe (cache) alınır.</li>
+        <li><strong>Performans Optimizasyonu:</strong> Veriler yazılırken "Bu sütunun ID'si neydi?" sorusu için veritabanına tekrar tekrar sorgu atılmaz (N+1 problemi engellenir). Eşleştirme milisaniyeler içinde RAM üzerinden yapılır.</li>
+        <li><strong>Dinamik Okuma (Dynamic Extraction):</strong> Kod, tabloların içindeki sütun sayısını önceden bilmeye ihtiyaç duymaz. Satırdaki tüm hücreler (cell) yatay olarak tek tek okunur ve dikey (vertical) formata çevrilir.</li>
+    </ul>
+
+    <h2>3. EAV (Entity-Attribute-Value) Modeli ve RowIndex Mantığı</h2>
+    <p>Geleneksel ilişkisel veritabanlarında veriler yatay (horizontal) satırlar halinde tutulurken, EAV modelinde veriler dikey sütunlara dönüştürülerek depolanır. Bu dönüşüm sırasında, aynı fiziksel satıra ait olan hücrelerin birbirleriyle olan anlamsal bağlarının kopmaması büyük bir kritik öneme sahiptir.</p>
+    
+    <div class="proof-box">
+        <h3>RowIndex (Satır İndeksi) Stratejisi</h3>
+        <p>Aynı kayda ait olan farklı niteliklerin (örneğin; bir müşterinin adı ve e-posta adresi) birbirleriyle olan bağını korumak için <code>RowIndex</code> mekanizması kullanılmıştır. Sistem, fiziksel bir tablonun satırını okurken bir sayaç (index) artırır ve o satırdan çıkan tüm hücre değerlerine aynı <code>RowIndex</code> damgasını vurur. Bu sayede veriler dikey olarak parçalanmış olsa bile, aynı RowIndex değerine sahip verilerin aslında M0 katmanında tek bir bütünü temsil ettiği anlaşılır.</p>
+    </div>
+
+    <!-- Metamodel Eşleşmesi ve Çıktılar Bölümü -->
+    <div class="conclusion-section">
+        <h2>4. İlişkisel Metamodel Eşleşmesi ve Çıktılar</h2>
+        <p><code>entityOccurrence_meta</code> tablosundaki verilerin anlamlandırılabilmesi için, içindeki <code>EntityId</code> ve <code>AttributeId</code> değerlerinin <strong>M1 (Model)</strong> katmanından çıkarılan ana metamodel tablolarıyla eşleştirilmesi gerekmektedir. Aşağıda bu ilişkisel bütünlüğü sağlayan tabloların çıktıları sırasıyla verilmiştir.</p>
+
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü15.png" alt="Entity Meta Tablosu">
+            <div class="image-caption">Şekil 1: entity_meta tablosu. Örneğin, 16 ID'li kayıt "musteriler" tablosunu temsil eder.</div>
+        </div>
+
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü16.png" alt="Attribute Meta Tablosu">
+            <div class="image-caption">Şekil 2: attribute_meta tablosu. Örneğin, 47 ID'li kayıt "ad" sütununu, 45 ID'li kayıt ise "email" sütununu temsil eder.</div>
+        </div>
+
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü14.png" alt="Entity Occurrence Meta Tablosu">
+            <div class="image-caption">Şekil 3: entityOccurrence_meta tablosu. Metamodel kimlikleriyle (ID) EAV mantığına aktarılan ham veriler.</div>
+        </div>
+        
+        <p>Şekil 3'te görüldüğü üzere, 16 numaralı EntityId'ye (Müşteriler) ait veriler ayrı satırlara bölünmüştür. İlgili AttributeId'ler (47=ad, 45=email vb.) Şekil 2'deki meta-verilerle eşleşerek, tabloda yer alan "Mustafa Esen" değerinin aslında bir müşteri adı olduğunu sistemin anlamasını sağlar. Hepsinde <code>rowindex</code> değerinin <strong>1</strong> olması, bu üç ayrı niteliğin de (id, ad, email) 1. sıradaki tek bir müşteriye ait olduğunu yapısal olarak güvence altına alır.</p>
+    </div>
+
+    <!-- Gruplandırılmış Sonuç Bölümü -->
+    <div class="conclusion-section">
+        <h2>5. Değerlendirme ve Sonuç</h2>
+        <p>Bu çalışma sonucunda, ilişkisel veritabanı tablolarına hapsolmuş yatay verilerin (M0), dinamik bir şekilde analiz edilerek merkezi bir Metamodel (M2) yapısına entegre edilebileceği kanıtlanmıştır. Geliştirilen C# aracı; Entity, Attribute ve Occurrence üçlemesini EAV (Entity-Attribute-Value) mimarisiyle birbirine bağlayarak veritabanının içeriğini bir <strong>Veri Sözlüğü (Data Dictionary)</strong> formatına çevirmiştir. Bu yapısal dönüşüm, bilgi sistemlerinin yeni tablolara, yeni veri tiplerine ve sürekli değişen şemalara karşı tam esnek, sorgulanabilir ve otonom bir yapıya (Self-Documenting Database) kavuşmasını sağlamıştır.</p>
+    </div>
+
+</div>
+
+</body>
+</html>

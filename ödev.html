@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Veri Yönetimi Metamodeli (M2) ve İlişkisel Bütünlük Doğrulama Raporu</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f4f6f9;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 50px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 3px solid #34495e;
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        .header-info {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+        h2 {
+            color: #2980b9;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+        }
+        p {
+            text-align: justify;
+            font-size: 1.05em;
+        }
+        .image-container {
+            text-align: center;
+            margin: 25px 0;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .image-caption {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .proof-box {
+            background: #f8f9fa;
+            border-left: 5px solid #27ae60;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .proof-box h3 {
+            margin-top: 0;
+            color: #27ae60;
+        }
+        ul {
+            padding-left: 20px;
+            font-size: 1.05em;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+
+        /* --- PDF ÇIKTISI İÇİN SAYFA KAYMA DÜZELTMELERİ --- */
+        @media print {
+            body {
+                background-color: #ffffff;
+                margin: 0;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            /* Kutu, resim ve sonuç bölümünün ortadan ikiye bölünmesini engeller */
+            .proof-box, .image-container, .conclusion-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            /* Başlıklardan hemen sonra sayfanın kesilmesini engeller */
+            h2, h3 {
+                page-break-after: avoid;
+                break-after: avoid;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            /* Paragrafların ve listelerin tek satır kalmasını engeller */
+            p, ul, li {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Veri Yönetimi Metamodeli (M2) ve İlişkisel Bütünlük Doğrulama Raporu</h1>
+    
+    <div class="header-info">
+        <p><strong>Hazırlayan:</strong> Mustafa Esen<br>
+        <strong>Öğrenci Numarası:</strong> 91260000486<br>
+        <strong>Tarih:</strong> 5 Ekim 2026<br>
+        <strong>Kapsam:</strong> Veritabanı Sistemleri, Metamodel Çıkarımı ve Black-Box Testleri</p>
+    </div>
+
+    <h2>1. Projenin Amacı ve Kapsamı</h2>
+    <p>Bu çalışmanın temel amacı, PostgreSQL ilişkisel veritabanı yönetim sistemi (RDBMS) üzerinde <strong>M1 (Model)</strong> seviyesindeki fiziksel yapıların analiz edilerek, <strong>M2 (Metamodel)</strong> seviyesine dinamik ve otomatik çıkarımının (extraction) yapılmasıdır. Ayrıca projenin ikinci aşamasında, veritabanı motorunun ("Black Box") tablolar arasında arka planda kurduğu <code>FOREIGN KEY</code> (Dış Anahtar) ilişkilerinin bilimsel yöntemlerle kanıtlanması (verification) hedeflenmiştir. Süreç, <code>information_schema</code> sorgularını, çalıştırma planı (Execution Plan) analizlerini ve kural ihlali (Negative Testing) testlerini barındıran bir C# (.NET Core) uygulaması ile gerçekleştirilmiştir.</p>
+
+    <h2>2. Mimari ve Metamodel Çıkarımı (M1 -> M2)</h2>
+    <p>Geliştirilen C# konsol uygulaması, veritabanı şemasında bulunan yapısal bileşenleri Reflection ve System Catalog sorguları aracılığıyla başarıyla Metamodel düzeyine aktarmıştır. Uygulamanın çalıştırılması sonucunda oluşan meta-veriler DBeaver üzerinden doğrulanmıştır.</p>
+
+    <h3>2.1. Varlıkların (Entities) Çıkarımı</h3>
+    <p>Sistemdeki M1 seviyesi fiziksel tablolar (<code>siparisler</code> ve <code>musteriler</code>), otomatik olarak taranmış ve <code>entity_meta</code> tablosuna sistem tarafından atanan benzersiz kimliklerle (ID: 11 ve 12) kaydedilmiştir.</p>
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü6.png" alt="Entity Meta Tablosu">
+        <div class="image-caption">Şekil 1: entity_meta tablosuna aktarılan veritabanı varlıkları.</div>
+    </div>
+
+    <h3>2.2. Niteliklerin (Attributes) Çıkarımı</h3>
+    <p>Varlıklara ait sütunlar, veri tipleriyle birlikte analiz edilmiş ve ilgili Varlık ID'si (EntityId) ile ilişkilendirilerek <code>attribute_meta</code> tablosuna aktarılmıştır. <code>musteriid</code>, <code>email</code>, <code>tutar</code> gibi kolonlar yapısal olarak belgelenmiştir.</p>
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü5.png" alt="Attribute Meta Tablosu">
+        <div class="image-caption">Şekil 2: attribute_meta tablosuna aktarılan sütunlar ve veri tipleri.</div>
+    </div>
+
+    <h3>2.3. İlişkilerin (Relationships) Çıkarımı</h3>
+    <p>M1 seviyesinde müşteri ve sipariş tabloları arasında kurulan referans bütünlüğü, <code>relationship_meta</code> tablosuna yansıtılmıştır. "Müşteriler" (Parent: 12) ve "Siparişler" (Child: 11) arasındaki iş kuralı, <code>siparisler_musteriid_fkey</code> ismiyle kaydedilmiştir.</p>
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü8.png" alt="Relationship Meta Tablosu">
+        <div class="image-caption">Şekil 3: relationship_meta tablosuna aktarılan Dış Anahtar (Foreign Key) ilişkisi.</div>
+    </div>
+
+    <h2>3. Test Verisi (M0 Seviyesi) Hazırlığı</h2>
+    <p>Bilimsel doğrulama testlerinin (Davranışsal İhlal) uygulanabilmesi için tablolar <code>TRUNCATE</code> komutuyla temizlenmiş ve M0 (Veri) seviyesinde temsili, geçerli veriler oluşturulmuştur. 1 numaralı ID'ye sahip müşteri ve bu müşteriye bağlı bir sipariş veritabanına eklenmiştir.</p>
+    
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü7.png" alt="Müşteriler Tablosu Örnek Veri">
+        <div class="image-caption">Şekil 4: musteriler tablosuna eklenen örnek kayıt.</div>
+    </div>
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü9.png" alt="Siparişler Tablosu Örnek Veri">
+        <div class="image-caption">Şekil 5: siparisler tablosuna eklenen ve Müşteri 1'e bağlı olan geçerli sipariş kaydı.</div>
+    </div>
+
+    <h2>4. Bilimsel Doğrulama ve Kanıt (Black Box Verification)</h2>
+    <p>Uygulamanın konsol çıktısı, ilişkisel bütünlüğün (Referential Integrity) soyut bir tanımdan ibaret olmadığını; veritabanı motoru tarafından fiziksel, algoritmik ve davranışsal olarak aktif şekilde korunduğunu üç ampirik yöntemle ispatlamıştır. Aşağıda, her bir ispat adımı için yazdığımız C# entegrasyon kodları ve alınan çıktılar detaylandırılmıştır.</p>
+
+    <div class="image-container">
+        <img src="images/ekranGörüntüsü4.png" alt="C# Uygulaması Konsol Çıktısı - Bilimsel Doğrulama Raporu">
+        <div class="image-caption">Şekil 6: C# uygulamasının ürettiği kapsamlı Bilimsel Doğrulama (Verification) Raporu.</div>
+    </div>
+
+    <div class="proof-box">
+        <h3>Kanıt 1: Sistem Kataloğu (Metadata) Doğrulaması</h3>
+        <p><code>information_schema.table_constraints</code> üzerinden atılan sorgu, <code>siparisler_musteriid_fkey</code> kısıtlamasının veritabanı motorunun "Veri Sözlüğü" (Data Dictionary) belleğine resmi olarak işlendiğini yapısal olarak ispatlamıştır. Bu işlemi gerçekleştirmek için SQL kuralı C# ortamında hazırlanmış ve çalıştırılmıştır.</p>
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü10.png" alt="Kanıt 1 - SQL Hazırlığı">
+            <div class="image-caption">Şekil 7: Kanıt 1 için sistem kataloğunu sorgulayan SQL komutunun C# üzerinde tanımlanması.</div>
+        </div>
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü11.png" alt="Kanıt 1 - İspat Kodu">
+            <div class="image-caption">Şekil 8: Metamodel doğrulama sorgusunun çalıştırılması ve sonucun konsol raporuna aktarılması.</div>
+        </div>
+    </div>
+
+    <div class="proof-box">
+        <h3>Kanıt 2: Fiziksel B-Tree ve Çalıştırma Planı (Execution Plan) Analizi</h3>
+        <p>İki tablo <code>JOIN</code> işlemiyle birleştirildiğinde motorun izlediği yollar <code>EXPLAIN ANALYZE</code> komutuyla izlenmiştir. Çıktıda yer alan <code>Hash Join</code> ve <code>Seq Scan</code> operasyonları, veritabanının iki tablo arasındaki ilişkiyi RAM ve disk blokları üzerinde nasıl algoritmik olarak eşleştirdiğinin somut fiziksel kanıtıdır.</p>
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü12.png" alt="Kanıt 2 - Execution Plan Kodu">
+            <div class="image-caption">Şekil 9: Veritabanı motorunun çalıştırma planını (Execution Plan) analiz etmek için geliştirilen C# okuma bloğu.</div>
+        </div>
+    </div>
+
+    <div class="proof-box">
+        <h3>Kanıt 3: Davranışsal Kural İhlali (Negative Testing)</h3>
+        <p>Veritabanı motorunun sınırlarını ve koruma kalkanlarını test etmek ("Yanlışlanabilirlik - Falsifiability" ilkesi) amacıyla iki ihlal senaryosu çalıştırılmış ve C# tarafında fırlatılan Exception (Hata) mesajları yakalanarak kaydedilmiştir:</p>
+        <ul>
+            <li><strong>İspat A (Olmayan Veri Ekleme - Parent Key Missing):</strong> Ana tabloda bulunmayan <code>999</code> ID'li bir müşteriye sipariş eklenmeye çalışıldığında sistem bu yetkisiz işlemi anında bloke etmiş ve <code>23503</code> SQL State kodlu Foreign Key ihlal hatasını fırlatmıştır.</li>
+            <li><strong>İspat B (Yetim Kayıt Önleme - Orphan Record Protection):</strong> Alt tabloda (Siparişler) aktif kaydı bulunan bir anne/baba (Müşteri) kaydı silinmeye çalışılmış, veritabanı motoru yine <code>23503</code> hatası fırlatarak Yetim Kayıt (Orphan Record) oluşumunu ve veri tutarsızlığını proaktif olarak engellemiştir.</li>
+        </ul>
+        <div class="image-container">
+            <img src="images/ekranGörüntüsü13.png" alt="Kanıt 3 - Negative Testing Kodu">
+            <div class="image-caption">Şekil 10: Davranışsal kural ihlali (Negative Testing) için yazılan C# Try-Catch doğrulama kodları ve PostgresException yakalama mekanizması.</div>
+        </div>
+    </div>
+
+    <!-- Gruplandırılmış Sonuç Bölümü -->
+    <div class="conclusion-section">
+        <h2>5. Değerlendirme ve Sonuç</h2>
+        <p>Bu çalışma, modern ilişkisel veritabanlarının yalnızca pasif veri depoları olmadığını; kendi mimarilerini tanımlayan bir metamodel altyapısına (M2) sahip olduklarını başarıyla modellemiştir. Geliştirilen C# aracı, bu metamodeli okuyarak bağımsız tablolara aktarmış ve veritabanı "Kara Kutusu"nun (Black Box) Referans Bütünlüğü kurallarını <em>katalog tanımları</em>, <em>çalıştırma planları (Execution Plans)</em> ve <em>davranışsal kısıtlamalar (Constraints)</em> üzerinden aktif bir savunma mekanizması olarak işlettiğini %100 bilimsel kanıtlarla doğrulamıştır.</p>
+    </div>
+
+</div>
+
+</body>
+</html>

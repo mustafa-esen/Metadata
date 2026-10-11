@@ -1,0 +1,68 @@
+## .NET ve C# Build Çıktıları
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+
+## NuGet Paketleri ve Önbellek
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+packages/
+*.nupkg
+
+## Test ve Profiler Çıktıları
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## Geçici Dosyalar ve Yedekler
+*.tmp
+*.temp
+*~
+*.swp
+
+## Gizlilik ve Yapılandırma Dosyaları (Credentials / Env)
+.env
+.env.*
+!*.example.env
+appsettings*.local.json
+appsettings.Production.json
+
+## İşletim Sistemi Dosyaları
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.fuse_hidden*
+.directory
